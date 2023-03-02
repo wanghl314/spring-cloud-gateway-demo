@@ -4,8 +4,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.servlet.http.HttpServletResponse;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.web.reactive.error.ErrorWebExceptionHandler;
@@ -42,12 +40,12 @@ public class GlobalErrorWebExceptionHandler implements ErrorWebExceptionHandler 
         headers.add("Decrypt-Response-Body", "false");
 
         if (t instanceof ResponseStatusException) {
-            response.setStatusCode(((ResponseStatusException) t).getStatus());
+            response.setStatusCode(((ResponseStatusException) t).getStatusCode());
         } else {
             response.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR);
         }
         Map<String, Object> result = new HashMap<String, Object>();
-        int errcode = HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+        int errcode = HttpStatus.INTERNAL_SERVER_ERROR.value();
         String errmsg = "unknown exception: " + t.getClass().getSimpleName();
 
         if (t instanceof KeyDecryptException) {
