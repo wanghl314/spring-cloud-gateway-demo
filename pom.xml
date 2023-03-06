@@ -18,21 +18,23 @@
 
     <repositories>
         <repository>
-            <id>nexus</id>
-            <name>RepositoryProxy</name>
-            <url>http://nexus.teems.cn/content/groups/public</url>
+            <id>aliyun</id>
+            <name>阿里云公共仓库</name>
+            <url>https://maven.aliyun.com/repository/public</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
             <snapshots>
                 <enabled>true</enabled>
-                <updatePolicy>interval:5</updatePolicy>
             </snapshots>
         </repository>
     </repositories>
 
     <pluginRepositories>
         <pluginRepository>
-            <id>nexus</id>
-            <name>RepositoryProxy</name>
-            <url>http://nexus.teems.cn/content/groups/public</url>
+            <id>aliyun</id>
+            <name>阿里云公共仓库</name>
+            <url>https://maven.aliyun.com/repository/public</url>
         </pluginRepository>
     </pluginRepositories>
 
