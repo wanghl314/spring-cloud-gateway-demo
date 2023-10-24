@@ -9,7 +9,7 @@ import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.cloud.gateway.route.Route;
 import org.springframework.cloud.gateway.support.ServerWebExchangeUtils;
 import org.springframework.core.Ordered;
-import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpCookie;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
@@ -25,9 +25,7 @@ public class DynamicRouteFilter implements GlobalFilter, Ordered {
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
-        HttpHeaders headers = request.getHeaders();
-        String serverId = headers.getFirst("Server-Id");
-        serverId = StringUtils.trim(serverId);
+        String serverId = this.getServerId(request);
         String targetUrl = "";
 
         if ("1".equals(serverId)) {
@@ -43,10 +41,11 @@ public class DynamicRouteFilter implements GlobalFilter, Ordered {
             Route route = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR);
             Route newRoute = Route.async()
                     .id(route.getId())
+                    .uri(uri)
+                    .order(route.getOrder())
                     .asyncPredicate(route.getPredicate())
                     .filters(route.getFilters())
-                    .order(route.getOrder())
-                    .uri(uri)
+                    .metadata(route.getMetadata())
                     .build();
 
             exchange.getAttributes().put(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR, newRoute);
@@ -60,6 +59,22 @@ public class DynamicRouteFilter implements GlobalFilter, Ordered {
     @Override
     public int getOrder() {
         return OrderedFilter.REQUEST_WRAPPER_FILTER_MAX_ORDER;
+    }
+
+    private String getServerId(ServerHttpRequest request) {
+        String key = "Server-Id";
+        String value = null;
+
+        HttpCookie cookie = request.getCookies().getFirst(key);
+
+        if (cookie != null) {
+            value = cookie.getValue();
+        }
+
+        if (StringUtils.isBlank(value)) {
+            value = request.getHeaders().getFirst(key);
+        }
+        return StringUtils.trim(value);
     }
 
 }
