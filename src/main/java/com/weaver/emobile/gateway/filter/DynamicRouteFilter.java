@@ -10,10 +10,10 @@ import org.springframework.cloud.gateway.route.Route;
 import org.springframework.cloud.gateway.support.ServerWebExchangeUtils;
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
-import org.springframework.util.MultiValueMap;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -33,15 +33,13 @@ public class DynamicRouteFilter implements GlobalFilter, Ordered {
         if ("1".equals(serverId)) {
             targetUrl = "http://127.0.0.1:8080";
         } else if ("2".equals(serverId)) {
+            targetUrl = "http://192.168.1.241:8083";
+        } else if ("3".equals(serverId)) {
             targetUrl = "https://www.weaver.com.cn";
         }
 
         if (StringUtils.isNotBlank(targetUrl)) {
-            String rawPath = request.getURI().getRawPath();
-            HttpMethod httpMethod = request.getMethod();
-            MultiValueMap<String, String> queryParams = request.getQueryParams();
-            URI uri = UriComponentsBuilder.fromHttpUrl(targetUrl + rawPath).queryParams(queryParams).build().toUri();
-            ServerHttpRequest serverHttpRequest = request.mutate().uri(uri).method(httpMethod).headers(httpHeaders -> httpHeaders = httpHeaders).build();
+            URI uri = UriComponentsBuilder.fromHttpUrl(targetUrl).build().toUri();
             Route route = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR);
             Route newRoute = Route.async()
                     .id(route.getId())
@@ -52,9 +50,11 @@ public class DynamicRouteFilter implements GlobalFilter, Ordered {
                     .build();
 
             exchange.getAttributes().put(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR, newRoute);
-            return chain.filter(exchange.mutate().request(serverHttpRequest).build());
+            return chain.filter(exchange);
         }
-        return chain.filter(exchange);
+        ServerHttpResponse response = exchange.getResponse();
+        response.setStatusCode(HttpStatus.NOT_FOUND);
+        return response.setComplete();
     }
 
     @Override
