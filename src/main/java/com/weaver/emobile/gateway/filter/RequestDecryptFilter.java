@@ -1,10 +1,10 @@
 package com.weaver.emobile.gateway.filter;
 
-import java.util.List;
-
+import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.web.servlet.filter.OrderedFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.cloud.gateway.filter.factory.rewrite.CachedBodyOutputMessage;
@@ -12,12 +12,13 @@ import org.springframework.cloud.gateway.support.BodyInserterContext;
 import org.springframework.core.Ordered;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.ReactiveHttpOutputMessage;
+import org.springframework.http.codec.ServerCodecConfigurer;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpRequestDecorator;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.BodyInserter;
 import org.springframework.web.reactive.function.BodyInserters;
-import org.springframework.web.reactive.function.server.HandlerStrategies;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.server.ServerWebExchange;
 
@@ -33,72 +34,72 @@ import reactor.core.publisher.Mono;
 public class RequestDecryptFilter implements GlobalFilter, Ordered {
     private static Logger logger = LoggerFactory.getLogger(RequestDecryptFilter.class);
 
+    private final ServerCodecConfigurer configurer;
+
+    public RequestDecryptFilter(ServerCodecConfigurer configurer) {
+        this.configurer = configurer;
+    }
+
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         HttpHeaders requestHeaders = exchange.getRequest().getHeaders();
-        List<String> dataEncryptKeyHeaders = requestHeaders.get("Data-Encrypt-Key");
-        boolean encrypted = false;
+        String dataEncryptKey = requestHeaders.getFirst(Consts.DATA_ENCRYPT_KEY_HEADER_KEY);
         String dataEncryptDecryptKey = null;
 
-        if (dataEncryptKeyHeaders != null && !dataEncryptKeyHeaders.isEmpty() && StringUtils.isNotBlank(dataEncryptKeyHeaders.get(0))) {
+        if (StringUtils.isNotBlank(dataEncryptKey)) {
             try {
-                dataEncryptDecryptKey = EncodeUtils.rsaDecrypt(dataEncryptKeyHeaders.get(0), Consts.PRIVATE_KEY);
-                encrypted = true;
+                dataEncryptDecryptKey = EncodeUtils.rsaDecrypt(dataEncryptKey, Consts.PRIVATE_KEY);
             } catch (Exception e) {
                 throw new KeyDecryptException(e);
             }
         }
 
-        if (encrypted) {
-            exchange.getAttributes().put("Decrypted-Data-Encrypt-Key", dataEncryptDecryptKey);
-            ServerRequest serverRequest = ServerRequest.create(exchange, HandlerStrategies.withDefaults().messageReaders());
+        if (StringUtils.isNotBlank(dataEncryptDecryptKey)) {
+            exchange.getAttributes().put(Consts.DECRYPTED_DATA_ENCRYPT_KEY, dataEncryptDecryptKey);
+            ServerRequest serverRequest = ServerRequest.create(exchange, this.configurer.getReaders());
             String finalDataEncryptDecryptKey = dataEncryptDecryptKey;
 
-            Mono<String> modifiedBody = serverRequest.bodyToMono(String.class)
+            Mono<byte[]> modifiedBody = serverRequest.bodyToMono(byte[].class)
                     .flatMap(originalBody -> {
-                        String newBody = null;
+                        byte[] newBody = originalBody;
 
-                        if (StringUtils.isNotBlank(originalBody)) {
+                        if (originalBody != null) {
                             try {
-                                newBody = EncodeUtils.aesDecrypt(originalBody, finalDataEncryptDecryptKey);
+                                newBody = EncodeUtils.aesDecrypt(Base64.decodeBase64(originalBody), finalDataEncryptDecryptKey);
                             } catch (Exception e) {
                                 throw new BodyDecryptException(e);
                             }
-                        } else {
-                            newBody = originalBody;
                         }
                         return Mono.just(newBody);
                     });
-            BodyInserter bodyInserter = BodyInserters.fromPublisher(modifiedBody, String.class);
+            BodyInserter<Mono<byte[]>, ReactiveHttpOutputMessage> bodyInserter = BodyInserters.fromPublisher(modifiedBody, byte[].class);
             HttpHeaders headers = new HttpHeaders();
             headers.putAll(requestHeaders);
             headers.remove(HttpHeaders.CONTENT_LENGTH);
+            headers.remove(Consts.DATA_ENCRYPT_KEY_HEADER_KEY);
 
             CachedBodyOutputMessage outputMessage = new CachedBodyOutputMessage(exchange, headers);
             return bodyInserter.insert(outputMessage, new BodyInserterContext())
                     .then(Mono.defer(() -> {
-                        ServerHttpRequest decorator = decorate(exchange, headers,
-                                outputMessage);
-                        return chain
-                                .filter(exchange.mutate().request(decorator).build());
+                        ServerHttpRequest decorator = decorate(exchange, headers, outputMessage);
+                        return chain.filter(exchange.mutate().request(decorator).build());
                     }));
-        } else {
-            return chain.filter(exchange);
         }
+        return chain.filter(exchange);
     }
 
-    private ServerHttpRequestDecorator decorate(ServerWebExchange exchange, HttpHeaders headers, CachedBodyOutputMessage outputMessage) {
+    private ServerHttpRequestDecorator decorate(ServerWebExchange exchange, HttpHeaders headers,
+            CachedBodyOutputMessage outputMessage) {
         return new ServerHttpRequestDecorator(exchange.getRequest()) {
-
             @Override
             public HttpHeaders getHeaders() {
                 long contentLength = headers.getContentLength();
                 HttpHeaders httpHeaders = new HttpHeaders();
                 httpHeaders.putAll(headers);
-
                 if (contentLength > 0) {
                     httpHeaders.setContentLength(contentLength);
-                } else {
+                }
+                else {
                     // TODO: this causes a 'HTTP/1.1 411 Length Required' // on
                     // httpbin.org
                     httpHeaders.set(HttpHeaders.TRANSFER_ENCODING, "chunked");
@@ -110,13 +111,12 @@ public class RequestDecryptFilter implements GlobalFilter, Ordered {
             public Flux<DataBuffer> getBody() {
                 return outputMessage.getBody();
             }
-
         };
     }
 
     @Override
     public int getOrder() {
-        return -20;
+        return OrderedFilter.REQUEST_WRAPPER_FILTER_MAX_ORDER - 20;
     }
 
 }

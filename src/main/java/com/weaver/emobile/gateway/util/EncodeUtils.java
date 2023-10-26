@@ -2,15 +2,13 @@ package com.weaver.emobile.gateway.util;
 
 import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
-import java.security.SecureRandom;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 
 import javax.crypto.Cipher;
-import javax.crypto.KeyGenerator;
-import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
 import org.apache.commons.codec.binary.Base64;
 
@@ -51,21 +49,32 @@ public class EncodeUtils {
     }
 
     public static String aesEncrypt(String plainData, String key) throws Exception {
-        KeyGenerator generator = KeyGenerator.getInstance("AES");
-        generator.init(128, new SecureRandom(key.getBytes()));
-        SecretKey secretKey = generator.generateKey();
+        return Base64.encodeBase64String(aesEncrypt(plainData.getBytes(StandardCharsets.UTF_8), key));
+    }
+
+    public static byte[] aesEncrypt(byte[] plainData, String key) throws Exception {
+        SecretKeySpec secretKey = new SecretKeySpec(key.getBytes(), "AES");
         Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
         cipher.init(Cipher.ENCRYPT_MODE, secretKey);
-        return Base64.encodeBase64String(cipher.doFinal(plainData.getBytes(StandardCharsets.UTF_8)));
+        return cipher.doFinal(plainData);
     }
 
     public static String aesDecrypt(String encryptedData, String key) throws Exception {
-        KeyGenerator generator = KeyGenerator.getInstance("AES");
-        generator.init(128, new SecureRandom(key.getBytes()));
-        SecretKey secretKey = generator.generateKey();
+        return new String(aesDecrypt(Base64.decodeBase64(encryptedData), key), StandardCharsets.UTF_8);
+    }
+
+    public static byte[] aesDecrypt(byte[] encryptedData, String key) throws Exception {
+        SecretKeySpec secretKey = new SecretKeySpec(key.getBytes(), "AES");
         Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
         cipher.init(Cipher.DECRYPT_MODE, secretKey);
-        return new String(cipher.doFinal(Base64.decodeBase64(encryptedData)), StandardCharsets.UTF_8);
+        return cipher.doFinal(encryptedData);
+    }
+
+    public static void main(String[] args) throws Exception {
+        String key = "KgJicewzetMADQCS";
+        String data = "{\"a\":\"b\"}";
+        System.out.println(aesEncrypt(data, key));
+        System.out.println(rsaEncrypt(key, Consts.PUBLIC_KEY));
     }
 
 }
