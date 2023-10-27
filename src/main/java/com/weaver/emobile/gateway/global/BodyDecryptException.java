@@ -1,6 +1,10 @@
 package com.weaver.emobile.gateway.global;
 
+import java.io.Serial;
+
 public class BodyDecryptException extends RuntimeException {
+    @Serial
+    private static final long serialVersionUID = -5881205170669650956L;
 
     public BodyDecryptException() {
     }
