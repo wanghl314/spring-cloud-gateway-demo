@@ -3,12 +3,18 @@ package com.weaver.emobile.gateway.filter;
 import static java.util.function.Function.identity;
 import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.ORIGINAL_RESPONSE_CONTENT_TYPE_ATTR;
 
+import java.io.ByteArrayInputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javax.crypto.Cipher;
+import javax.crypto.CipherInputStream;
+import javax.crypto.spec.SecretKeySpec;
+
 import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -25,6 +31,7 @@ import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferFactory;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ReactiveHttpOutputMessage;
 import org.springframework.http.codec.ServerCodecConfigurer;
 import org.springframework.http.server.reactive.ServerHttpResponse;
@@ -37,7 +44,6 @@ import org.springframework.web.server.ServerWebExchange;
 
 import com.weaver.emobile.gateway.global.BodyEncryptException;
 import com.weaver.emobile.gateway.util.Consts;
-import com.weaver.emobile.gateway.util.EncodeUtils;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -98,11 +104,19 @@ public class ResponseEncryptFilter implements GlobalFilter, Ordered {
 
                             if (originalBody != null) {
                                 try {
-//                                    SecretKeySpec secretKey = new SecretKeySpec(dataEncryptDecryptKey.getBytes(), "AES");
-//                                    Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
-//                                    cipher.init(Cipher.DECRYPT_MODE, secretKey);
-//                                    newBody = new CipherInputStream(originalBody, cipher);
-                                    newBody = Base64.encodeBase64(EncodeUtils.aesEncrypt(originalBody, dataEncryptDecryptKey));
+                                    SecretKeySpec secretKey = new SecretKeySpec(dataEncryptDecryptKey.getBytes(), "AES");
+                                    Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+                                    cipher.init(Cipher.ENCRYPT_MODE, secretKey);
+                                    CipherInputStream cis = new CipherInputStream(new ByteArrayInputStream(originalBody), cipher);
+                                    newBody = IOUtils.toByteArray(cis);
+
+                                    if (StringUtils.isNotBlank(originalResponseContentType) ||
+                                            StringUtils.containsIgnoreCase(originalResponseContentType, MediaType.TEXT_HTML_VALUE) ||
+                                            StringUtils.containsIgnoreCase(originalResponseContentType, MediaType.TEXT_PLAIN_VALUE) ||
+                                            StringUtils.containsIgnoreCase(originalResponseContentType, MediaType.APPLICATION_JSON_VALUE) ||
+                                            StringUtils.containsIgnoreCase(originalResponseContentType, MediaType.APPLICATION_XML_VALUE)) {
+                                        newBody = Base64.encodeBase64(newBody);
+                                    }
                                 } catch (Exception e) {
                                     throw new BodyEncryptException(e);
                                 }

@@ -1,6 +1,14 @@
 package com.weaver.emobile.gateway.filter;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+
+import javax.crypto.Cipher;
+import javax.crypto.CipherInputStream;
+import javax.crypto.spec.SecretKeySpec;
+
 import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +20,7 @@ import org.springframework.cloud.gateway.support.BodyInserterContext;
 import org.springframework.core.Ordered;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ReactiveHttpOutputMessage;
 import org.springframework.http.codec.ServerCodecConfigurer;
 import org.springframework.http.server.reactive.ServerHttpRequest;
@@ -43,6 +52,7 @@ public class RequestDecryptFilter implements GlobalFilter, Ordered {
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         HttpHeaders requestHeaders = exchange.getRequest().getHeaders();
+        MediaType contentType = requestHeaders.getContentType();
         String dataEncryptKey = requestHeaders.getFirst(Consts.DATA_ENCRYPT_KEY_HEADER_KEY);
         String dataEncryptDecryptKey = null;
 
@@ -65,7 +75,19 @@ public class RequestDecryptFilter implements GlobalFilter, Ordered {
 
                         if (originalBody != null) {
                             try {
-                                newBody = EncodeUtils.aesDecrypt(Base64.decodeBase64(originalBody), finalDataEncryptDecryptKey);
+                                SecretKeySpec secretKey = new SecretKeySpec(finalDataEncryptDecryptKey.getBytes(), "AES");
+                                Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+                                cipher.init(Cipher.DECRYPT_MODE, secretKey);
+                                InputStream is = null;
+
+                                if (contentType != null && StringUtils.containsIgnoreCase(contentType.toString(), MediaType.MULTIPART_FORM_DATA_VALUE)) {
+                                    is = new ByteArrayInputStream(originalBody);
+                                } else {
+                                    is = new ByteArrayInputStream(Base64.decodeBase64(originalBody));
+                                }
+                                CipherInputStream cis = new CipherInputStream(is, cipher);
+                                newBody = IOUtils.toByteArray(cis);
+//                                newBody = EncodeUtils.aesDecrypt(Base64.decodeBase64(originalBody), finalDataEncryptDecryptKey);
                             } catch (Exception e) {
                                 throw new BodyDecryptException(e);
                             }
