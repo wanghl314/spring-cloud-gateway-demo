@@ -28,7 +28,7 @@ public class EncodeUtils {
         RSAPublicKey key = (RSAPublicKey) keyFactory.generatePublic(spec);
         Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
         cipher.init(Cipher.ENCRYPT_MODE, key);
-        return Base64.encodeBase64String(cipher.doFinal(plainData.getBytes("UTF-8")));
+        return Base64.encodeBase64String(cipher.doFinal(plainData.getBytes(StandardCharsets.UTF_8)));
     }
 
     /**
@@ -45,7 +45,7 @@ public class EncodeUtils {
         RSAPrivateKey key = (RSAPrivateKey) keyFactory.generatePrivate(spec);
         Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
         cipher.init(Cipher.DECRYPT_MODE, key);
-        return new String(cipher.doFinal(Base64.decodeBase64(encryptedData)), "UTF-8");
+        return new String(cipher.doFinal(Base64.decodeBase64(encryptedData)), StandardCharsets.UTF_8);
     }
 
     public static String aesEncrypt(String plainData, String key) throws Exception {
@@ -68,13 +68,6 @@ public class EncodeUtils {
         Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
         cipher.init(Cipher.DECRYPT_MODE, secretKey);
         return cipher.doFinal(encryptedData);
-    }
-
-    public static void main(String[] args) throws Exception {
-        String key = "KgJicewzetMADQCS";
-        String data = "{\"a\":\"b\"}";
-        System.out.println(aesEncrypt(data, key));
-        System.out.println(rsaEncrypt(key, Consts.PUBLIC_KEY));
     }
 
 }
