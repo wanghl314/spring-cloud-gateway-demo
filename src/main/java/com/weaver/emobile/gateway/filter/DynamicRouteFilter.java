@@ -3,8 +3,6 @@ package com.weaver.emobile.gateway.filter;
 import java.net.URI;
 
 import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.boot.web.servlet.filter.OrderedFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
@@ -19,26 +17,19 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import com.weaver.emobile.gateway.util.RouteUtils;
+
 import reactor.core.publisher.Mono;
 
 @Component
 public class DynamicRouteFilter implements GlobalFilter, Ordered {
-    private static Logger logger = LoggerFactory.getLogger(DynamicRouteFilter.class);
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
         ServerHttpResponse response = exchange.getResponse();
         String serverId = this.getServerId(request);
-        String targetUrl = "";
-
-        if ("1".equals(serverId)) {
-            targetUrl = "http://127.0.0.1:8080";
-        } else if ("2".equals(serverId)) {
-            targetUrl = "http://192.168.1.241:8083";
-        } else if ("3".equals(serverId)) {
-            targetUrl = "https://www.weaver.com.cn";
-        }
+        String targetUrl = RouteUtils.getRoutes().get(serverId);
 
         if (StringUtils.isNotBlank(targetUrl)) {
             URI uri = UriComponentsBuilder.fromHttpUrl(targetUrl).build().toUri();
