@@ -110,11 +110,11 @@ public class ResponseEncryptFilter implements GlobalFilter, Ordered {
                                     CipherInputStream cis = new CipherInputStream(new ByteArrayInputStream(originalBody), cipher);
                                     newBody = IOUtils.toByteArray(cis);
 
-                                    if (StringUtils.isNotBlank(originalResponseContentType) ||
-                                            StringUtils.containsIgnoreCase(originalResponseContentType, MediaType.TEXT_HTML_VALUE) ||
+                                    if (StringUtils.isNotBlank(originalResponseContentType) &&
+                                            (StringUtils.containsIgnoreCase(originalResponseContentType, MediaType.TEXT_HTML_VALUE) ||
                                             StringUtils.containsIgnoreCase(originalResponseContentType, MediaType.TEXT_PLAIN_VALUE) ||
                                             StringUtils.containsIgnoreCase(originalResponseContentType, MediaType.APPLICATION_JSON_VALUE) ||
-                                            StringUtils.containsIgnoreCase(originalResponseContentType, MediaType.APPLICATION_XML_VALUE)) {
+                                            StringUtils.containsIgnoreCase(originalResponseContentType, MediaType.APPLICATION_XML_VALUE))) {
                                         newBody = Base64.encodeBase64(newBody);
                                     }
                                 } catch (Exception e) {
