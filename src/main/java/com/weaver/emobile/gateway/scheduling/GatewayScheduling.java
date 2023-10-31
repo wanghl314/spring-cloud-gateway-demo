@@ -1,10 +1,10 @@
 package com.weaver.emobile.gateway.scheduling;
 
 import java.time.Duration;
-import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -23,11 +23,10 @@ public class GatewayScheduling {
 
     private static Logger logger = LoggerFactory.getLogger(GatewayScheduling.class);
 
-    private WebClient webClient;
+    private WebClient webClient = WebClient.builder().build();
 
-    public GatewayScheduling() {
-        webClient = WebClient.builder().build();
-    }
+    @Autowired
+    private ObjectMapper mapper;
 
     @Scheduled(cron = "0 0/1 * * * ?")
     public void refreshRoutes() {
@@ -44,8 +43,7 @@ public class GatewayScheduling {
 
     private void handleRefreshRoutesResp(String body) {
         try {
-            Map<String, String> routes = new ObjectMapper().readValue(body, new TypeReference<Map<String, String>>() {});
-            RouteUtils.setRoutes(routes);
+            RouteUtils.setRoutes(this.mapper.readValue(body, new TypeReference<>() {}));
         } catch (JsonProcessingException e) {
             logger.error(e.getMessage(), e);
         }

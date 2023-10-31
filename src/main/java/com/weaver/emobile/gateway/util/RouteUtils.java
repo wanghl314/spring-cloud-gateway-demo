@@ -3,14 +3,9 @@ package com.weaver.emobile.gateway.util;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.weaver.emobile.gateway.scheduling.GatewayScheduling;
 
 public class RouteUtils {
-    private static Logger logger = LoggerFactory.getLogger(GatewayScheduling.class);
-
     private static Map<String, String> routes = new HashMap<String, String>();
 
     public static Map<String, String> getRoutes() {
