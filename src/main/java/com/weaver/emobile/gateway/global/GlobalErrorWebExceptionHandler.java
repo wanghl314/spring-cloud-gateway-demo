@@ -6,6 +6,7 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.web.reactive.error.ErrorWebExceptionHandler;
 import org.springframework.core.io.buffer.DataBufferFactory;
 import org.springframework.http.HttpHeaders;
@@ -23,9 +24,10 @@ import reactor.core.publisher.Mono;
 
 @Component
 public class GlobalErrorWebExceptionHandler implements ErrorWebExceptionHandler {
-    private static ObjectMapper objectMapper = new ObjectMapper();
-
     private static Logger logger = LoggerFactory.getLogger(GlobalErrorWebExceptionHandler.class);
+
+    @Autowired
+    private ObjectMapper mapper;
 
     @Override
     public Mono<Void> handle(ServerWebExchange exchange, Throwable t) {
@@ -66,7 +68,7 @@ public class GlobalErrorWebExceptionHandler implements ErrorWebExceptionHandler 
                 .writeWith(Mono.fromSupplier(() -> {
                     DataBufferFactory bufferFactory = response.bufferFactory();
                     try {
-                        return bufferFactory.wrap(objectMapper.writeValueAsBytes(result));
+                        return bufferFactory.wrap(this.mapper.writeValueAsBytes(result));
                     } catch (JsonProcessingException e) {
                         return bufferFactory.wrap(("{\"errcode\":\""+ finalErrcode +"\",\"errmsg\":\""+finalErrmsg+"\"}").getBytes(StandardCharsets.UTF_8));
                     }
