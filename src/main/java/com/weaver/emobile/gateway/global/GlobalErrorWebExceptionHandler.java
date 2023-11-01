@@ -19,6 +19,7 @@ import org.springframework.web.server.ServerWebExchange;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.weaver.emobile.gateway.util.Consts;
 
 import reactor.core.publisher.Mono;
 
@@ -39,7 +40,7 @@ public class GlobalErrorWebExceptionHandler implements ErrorWebExceptionHandler 
         }
         HttpHeaders headers = response.getHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.add("Decrypt-Response-Body", "false");
+        headers.set(Consts.DATA_ENCRYPTED_HEADER, "false");
 
         if (t instanceof ResponseStatusException) {
             response.setStatusCode(((ResponseStatusException) t).getStatusCode());

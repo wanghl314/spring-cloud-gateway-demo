@@ -53,7 +53,7 @@ public class RequestDecryptFilter implements GlobalFilter, Ordered {
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         HttpHeaders requestHeaders = exchange.getRequest().getHeaders();
         MediaType contentType = requestHeaders.getContentType();
-        String dataEncryptKey = requestHeaders.getFirst(Consts.DATA_ENCRYPT_KEY_HEADER_KEY);
+        String dataEncryptKey = requestHeaders.getFirst(Consts.DATA_ENCRYPT_KEY_HEADER);
         String dataEncryptDecryptKey = null;
 
         if (StringUtils.isNotBlank(dataEncryptKey)) {
@@ -78,7 +78,7 @@ public class RequestDecryptFilter implements GlobalFilter, Ordered {
                                 SecretKeySpec secretKey = new SecretKeySpec(finalDataEncryptDecryptKey.getBytes(), "AES");
                                 Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
                                 cipher.init(Cipher.DECRYPT_MODE, secretKey);
-                                InputStream is = null;
+                                InputStream is;
 
                                 if (contentType != null && StringUtils.containsIgnoreCase(contentType.toString(), MediaType.MULTIPART_FORM_DATA_VALUE)) {
                                     is = new ByteArrayInputStream(originalBody);
@@ -89,7 +89,7 @@ public class RequestDecryptFilter implements GlobalFilter, Ordered {
                                 newBody = IOUtils.toByteArray(cis);
 //                                newBody = EncodeUtils.aesDecrypt(Base64.decodeBase64(originalBody), finalDataEncryptDecryptKey);
                             } catch (Exception e) {
-                                throw new BodyDecryptException(e);
+                                return Mono.error(new BodyDecryptException(e));
                             }
                         }
                         return Mono.just(newBody);
@@ -98,7 +98,8 @@ public class RequestDecryptFilter implements GlobalFilter, Ordered {
             HttpHeaders headers = new HttpHeaders();
             headers.putAll(requestHeaders);
             headers.remove(HttpHeaders.CONTENT_LENGTH);
-            headers.remove(Consts.DATA_ENCRYPT_KEY_HEADER_KEY);
+            headers.remove(Consts.SERVER_ID_HEADER);
+            headers.remove(Consts.DATA_ENCRYPT_KEY_HEADER);
 
             CachedBodyOutputMessage outputMessage = new CachedBodyOutputMessage(exchange, headers);
             return bodyInserter.insert(outputMessage, new BodyInserterContext())

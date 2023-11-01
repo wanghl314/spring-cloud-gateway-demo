@@ -85,6 +85,7 @@ public class ResponseEncryptFilter implements GlobalFilter, Ordered {
         @Override
         public Mono<Void> writeWith(Publisher<? extends DataBuffer> body) {
             String dataEncryptDecryptKey = exchange.getAttribute(Consts.DECRYPTED_DATA_ENCRYPT_KEY);
+            exchange.getResponse().getHeaders().set(Consts.DATA_ENCRYPTED_HEADER, String.valueOf(StringUtils.isNotBlank(dataEncryptDecryptKey)));
 
             if (StringUtils.isNotBlank(dataEncryptDecryptKey)) {
                 String originalResponseContentType = exchange.getAttribute(ORIGINAL_RESPONSE_CONTENT_TYPE_ATTR);
@@ -118,7 +119,7 @@ public class ResponseEncryptFilter implements GlobalFilter, Ordered {
                                         newBody = Base64.encodeBase64(newBody);
                                     }
                                 } catch (Exception e) {
-                                    throw new BodyEncryptException(e);
+                                    return Mono.error(new BodyEncryptException(e));
                                 }
                             }
                             return Mono.just(newBody);

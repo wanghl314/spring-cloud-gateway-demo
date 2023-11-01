@@ -5,7 +5,11 @@ public interface Consts {
 
     String PUBLIC_KEY = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAiHK4udxWhwfsG7Dd3Lsj2MEG9Z5Ot0xKD3FeBkU+2RHdfDPguHMkm0+Ko3j+8bYdXQJaTf5BbcTFzKU3OrYdJ+/s4zeAlalhH4voW/hE1BbgnGKWPZTHvOrrdBorUZioGptxNEmwy3bBAF9n6HYgdhSAMtpeY1/cPComUNc4TBuhqdFEvQNOUxXwSqOrBDbLlAym+kQnliHjOPLzWQOZO9RIQO8Pk7gVO9v7sDv05WXXIRbXq2pS33DIgN/FbZzJPPjwvHL3DcOf6EtP82CcggmFubH7thkrvxcnv/GNwv36w1Fkig5vLSQLtwB3GYQ208YeZry12yeny9orEuwjsQIDAQAB";
 
-    String DATA_ENCRYPT_KEY_HEADER_KEY = "Data-Encrypt-Key";
+    String DATA_ENCRYPT_KEY_HEADER = "Data-Encrypt-Key";
 
     String DECRYPTED_DATA_ENCRYPT_KEY = "Decrypted-Data-Encrypt-Key";
+
+    String DATA_ENCRYPTED_HEADER = "Data-Encrypted";
+
+    String SERVER_ID_HEADER = "Server-Id";
 }
