@@ -42,8 +42,8 @@ public class GlobalErrorWebExceptionHandler implements ErrorWebExceptionHandler 
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set(Consts.DATA_ENCRYPTED_HEADER, "false");
 
-        if (t instanceof ResponseStatusException) {
-            response.setStatusCode(((ResponseStatusException) t).getStatusCode());
+        if (t instanceof ResponseStatusException rse) {
+            response.setStatusCode(rse.getStatusCode());
         } else {
             response.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR);
         }
