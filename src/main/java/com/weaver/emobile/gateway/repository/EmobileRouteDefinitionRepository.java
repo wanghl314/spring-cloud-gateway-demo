@@ -1,12 +1,12 @@
 package com.weaver.emobile.gateway.repository;
 
-import java.net.URI;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.cloud.gateway.filter.FilterDefinition;
+import org.springframework.cloud.gateway.filter.factory.StripPrefixGatewayFilterFactory;
 import org.springframework.cloud.gateway.handler.predicate.PredicateDefinition;
 import org.springframework.cloud.gateway.route.RouteDefinition;
 import org.springframework.cloud.gateway.route.RouteDefinitionRepository;
@@ -25,17 +25,22 @@ public class EmobileRouteDefinitionRepository implements RouteDefinitionReposito
 
         PredicateDefinition predicate = new PredicateDefinition();
         predicate.setName("Path");
-        Map<String, String> predicateParams = new HashMap<String, String>();
-        predicateParams.put("pattern", "/**");
-        predicate.setArgs(predicateParams);
+        Map<String, String> predicateArgs = new HashMap<String, String>();
+        predicateArgs.put("pattern", "/spring/**");
+        predicate.setArgs(predicateArgs);
 
-        URI uri = UriComponentsBuilder.fromHttpUrl("http://192.168.1.241:8083").build().toUri();
-//        URI uri = UriComponentsBuilder.fromHttpUrl("http://192.168.1.243:8088").build().toUri();
+        FilterDefinition filter = new FilterDefinition();
+        filter.setName("StripPrefix");
+        Map<String, String> filterArgs = new HashMap<String, String>();
+        filterArgs.put(StripPrefixGatewayFilterFactory.PARTS_KEY, "0");
+        filter.setArgs(filterArgs);
 
         RouteDefinition route = new RouteDefinition();
-        route.setId("test");
-        route.setPredicates(Arrays.asList(predicate));
-        route.setUri(uri);
+        route.setId("spring-demo");
+        route.setPredicates(List.of(predicate));
+        route.setFilters(List.of(filter));
+        route.setUri(UriComponentsBuilder.fromHttpUrl("http://127.0.0.1:8080/spring").build().toUri());
+        route.setOrder(1);
         routes.add(route);
         return Flux.fromIterable(routes);
     }

@@ -2,6 +2,7 @@
 <configuration scan="true" scanPeriod="30 seconds">
 	<include resource="org/springframework/boot/logging/logback/defaults.xml" />
 	<property name="LOG_FILE" value="${LOG_FILE:-${user.dir}/logs/gateway.log}"/>
+	<property name="ACCESS_LOG_FILE" value="${ACCESS_LOG_FILE:-${user.dir}/logs/access.log}"/>
 	<include resource="org/springframework/boot/logging/logback/console-appender.xml" />
 	<appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
 		<encoder>
@@ -15,8 +16,26 @@
 			<totalSizeCap>1GB</totalSizeCap>
 		</rollingPolicy>
 	</appender>
+	<appender name="accessLog" class="ch.qos.logback.core.FileAppender">
+		<encoder>
+			<pattern>%msg%n</pattern>
+		</encoder>
+		<file>${ACCESS_LOG_FILE}</file>
+		<rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+			<fileNamePattern>${ACCESS_LOG_FILE}-%d{yyyy-MM-dd}.zip</fileNamePattern>
+			<maxFileSize>10MB</maxFileSize>
+			<maxHistory>60</maxHistory>
+			<totalSizeCap>1GB</totalSizeCap>
+		</rollingPolicy>
+	</appender>
+	<appender name="async" class="ch.qos.logback.classic.AsyncAppender">
+		<appender-ref ref="accessLog" />
+	</appender>
 	<root level="INFO">
 		<appender-ref ref="CONSOLE" />
 		<appender-ref ref="FILE" />
 	</root>
+	<logger name="reactor.netty.http.server.AccessLog" level="INFO" additivity="false">
+		<appender-ref ref="async"/>
+	</logger>
 </configuration>

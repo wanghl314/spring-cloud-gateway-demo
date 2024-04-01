@@ -44,10 +44,8 @@ public class DynamicRouteFilter implements GlobalFilter, Ordered {
                     .build();
 
             exchange.getAttributes().put(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR, newRoute);
-            return chain.filter(exchange);
         }
-        response.setStatusCode(HttpStatus.NOT_FOUND);
-        return response.setComplete();
+        return chain.filter(exchange);
     }
 
     @Override
