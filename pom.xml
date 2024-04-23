@@ -12,6 +12,8 @@
         <!-- commons-io/commons-io -->
         <commons-io.version>2.15.1</commons-io.version>
         <java.version>17</java.version>
+        <!-- org/projectlombok/lombok -->
+        <lombok.version>1.18.30</lombok.version>
         <!-- org/apache/maven/plugins/maven-compiler-plugin -->
         <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
         <!-- org/apache/maven/plugins/maven-javadoc-plugin -->
@@ -20,6 +22,8 @@
         <maven-source-plugin.version>3.3.0</maven-source-plugin.version>
         <!-- io/micrometer/micrometer-tracing-bom -->
         <micrometer-tracing.version>1.2.4</micrometer-tracing.version>
+        <!-- org/apache/mina/mina-core -->
+        <mina.version>2.2.3</mina.version>
         <revision>1.0-SNAPSHOT</revision>
         <!-- org/springframework/boot/spring-boot-dependencies -->
         <spring-boot.version>3.2.4</spring-boot.version>
@@ -64,6 +68,17 @@
                 <scope>import</scope>
             </dependency>
             <dependency>
+                <groupId>org.apache.mina</groupId>
+                <artifactId>mina-core</artifactId>
+                <version>${mina.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>${lombok.version}</version>
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
                 <version>${spring-boot.version}</version>
@@ -96,6 +111,18 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-collections4</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.mina</groupId>
+            <artifactId>mina-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.cloud</groupId>
