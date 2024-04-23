@@ -1,22 +1,19 @@
 package com.weaver.emobile.gateway.repository;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import org.springframework.cloud.gateway.filter.FilterDefinition;
 import org.springframework.cloud.gateway.filter.factory.StripPrefixGatewayFilterFactory;
 import org.springframework.cloud.gateway.handler.predicate.PredicateDefinition;
 import org.springframework.cloud.gateway.route.RouteDefinition;
 import org.springframework.cloud.gateway.route.RouteDefinitionRepository;
-import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
-
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-@Component
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 public class EmobileRouteDefinitionRepository implements RouteDefinitionRepository {
 
     @Override

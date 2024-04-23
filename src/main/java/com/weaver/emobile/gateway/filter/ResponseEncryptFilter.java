@@ -1,18 +1,8 @@
 package com.weaver.emobile.gateway.filter;
 
-import static java.util.function.Function.identity;
-import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.ORIGINAL_RESPONSE_CONTENT_TYPE_ATTR;
-
-import java.io.ByteArrayInputStream;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import javax.crypto.Cipher;
-import javax.crypto.CipherInputStream;
-import javax.crypto.spec.SecretKeySpec;
-
+import com.weaver.emobile.gateway.config.SecurityTransferProperties;
+import com.weaver.emobile.gateway.consts.GatewayConsts;
+import com.weaver.emobile.gateway.global.BodyEncryptException;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -41,13 +31,22 @@ import org.springframework.web.reactive.function.BodyInserter;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.server.ServerWebExchange;
-
-import com.weaver.emobile.gateway.global.BodyEncryptException;
-import com.weaver.emobile.gateway.util.Consts;
-
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+
+import javax.crypto.Cipher;
+import javax.crypto.CipherInputStream;
+import javax.crypto.spec.SecretKeySpec;
+import java.io.ByteArrayInputStream;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import static java.util.function.Function.identity;
+import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.ORIGINAL_RESPONSE_CONTENT_TYPE_ATTR;
 
 @Component
 public class ResponseEncryptFilter implements GlobalFilter, Ordered {
@@ -59,13 +58,18 @@ public class ResponseEncryptFilter implements GlobalFilter, Ordered {
 
     private final Map<String, MessageBodyEncoder> messageBodyEncoders;
 
+    private final SecurityTransferProperties securityTransferProperties;
+
     public ResponseEncryptFilter(ServerCodecConfigurer configurer,
-            Set<MessageBodyDecoder> messageBodyDecoders, Set<MessageBodyEncoder> messageBodyEncoders) {
+                                 Set<MessageBodyDecoder> messageBodyDecoders,
+                                 Set<MessageBodyEncoder> messageBodyEncoders,
+                                 SecurityTransferProperties securityTransferProperties) {
         this.configurer = configurer;
         this.messageBodyDecoders = messageBodyDecoders.stream()
                 .collect(Collectors.toMap(MessageBodyDecoder::encodingType, identity()));
         this.messageBodyEncoders = messageBodyEncoders.stream()
                 .collect(Collectors.toMap(MessageBodyEncoder::encodingType, identity()));
+        this.securityTransferProperties = securityTransferProperties;
     }
 
     @Override
@@ -84,61 +88,38 @@ public class ResponseEncryptFilter implements GlobalFilter, Ordered {
 
         @Override
         public Mono<Void> writeWith(Publisher<? extends DataBuffer> body) {
-            String dataEncryptDecryptKey = exchange.getAttribute(Consts.DECRYPTED_DATA_ENCRYPT_KEY);
-            exchange.getResponse().getHeaders().set(Consts.DATA_ENCRYPTED_HEADER, String.valueOf(StringUtils.isNotBlank(dataEncryptDecryptKey)));
+            String originalResponseContentType = exchange.getAttribute(ORIGINAL_RESPONSE_CONTENT_TYPE_ATTR);
+            String dataEncryptDecryptKey = exchange.getAttribute(GatewayConsts.EXCHANGE_ENCRYPT_KEY);
 
             if (StringUtils.isNotBlank(dataEncryptDecryptKey)) {
-                String originalResponseContentType = exchange.getAttribute(ORIGINAL_RESPONSE_CONTENT_TYPE_ATTR);
-                HttpHeaders httpHeaders = new HttpHeaders();
-                // explicitly add it in this way instead of
-                // 'httpHeaders.setContentType(originalResponseContentType)'
-                // this will prevent exception in case of using non-standard media
-                // types like "Content-Type: image"
-                httpHeaders.add(HttpHeaders.CONTENT_TYPE, originalResponseContentType);
+                boolean dataEncrypt = (StringUtils.isNotBlank(originalResponseContentType) &&
+                        (MediaType.TEXT_HTML.isCompatibleWith(MediaType.parseMediaType(originalResponseContentType)) ||
+                                MediaType.TEXT_PLAIN.isCompatibleWith(MediaType.parseMediaType(originalResponseContentType)) ||
+                                MediaType.APPLICATION_JSON.isCompatibleWith(MediaType.parseMediaType(originalResponseContentType)) ||
+                                MediaType.APPLICATION_XML.isCompatibleWith(MediaType.parseMediaType(originalResponseContentType))));
+                exchange.getResponse().getHeaders().set(GatewayConsts.RESPONSE_ENCRYPT, dataEncrypt ? "1" : "0");
 
-                ClientResponse clientResponse = prepareClientResponse(body, httpHeaders);
+                return this.modifyBody(body, originalBody -> {
+                    byte[] newBody = originalBody;
 
-                // TODO: flux or mono
-                Mono<byte[]> modifiedBody = extractBody(exchange, clientResponse, byte[].class)
-                        .flatMap(originalBody -> {
-                            byte[] newBody = originalBody;
+                    if (originalBody != null) {
+                        try {
+                            if (GatewayConsts.Algorithm.SM4.equalsIgnoreCase(securityTransferProperties.getDataAlgorithm())) {
 
-                            if (originalBody != null) {
-                                try {
-                                    SecretKeySpec secretKey = new SecretKeySpec(dataEncryptDecryptKey.getBytes(), "AES");
-                                    Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
-                                    cipher.init(Cipher.ENCRYPT_MODE, secretKey);
-                                    CipherInputStream cis = new CipherInputStream(new ByteArrayInputStream(originalBody), cipher);
-                                    newBody = IOUtils.toByteArray(cis);
-
-                                    if (StringUtils.isNotBlank(originalResponseContentType) &&
-                                            (StringUtils.containsIgnoreCase(originalResponseContentType, MediaType.TEXT_HTML_VALUE) ||
-                                            StringUtils.containsIgnoreCase(originalResponseContentType, MediaType.TEXT_PLAIN_VALUE) ||
-                                            StringUtils.containsIgnoreCase(originalResponseContentType, MediaType.APPLICATION_JSON_VALUE) ||
-                                            StringUtils.containsIgnoreCase(originalResponseContentType, MediaType.APPLICATION_XML_VALUE))) {
-                                        newBody = Base64.encodeBase64(newBody);
-                                    }
-                                } catch (Exception e) {
-                                    return Mono.error(new BodyEncryptException(e));
-                                }
+                            } else {
+                                SecretKeySpec secretKey = new SecretKeySpec(dataEncryptDecryptKey.getBytes(), "AES");
+                                Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+                                cipher.init(Cipher.ENCRYPT_MODE, secretKey);
+                                CipherInputStream cis = new CipherInputStream(new ByteArrayInputStream(originalBody), cipher);
+                                newBody = IOUtils.toByteArray(cis);
+                                newBody = Base64.encodeBase64(newBody);
                             }
-                            return Mono.just(newBody);
-                        });
-
-                BodyInserter<Mono<byte[]>, ReactiveHttpOutputMessage> bodyInserter = BodyInserters.fromPublisher(modifiedBody, byte[].class);
-                CachedBodyOutputMessage outputMessage = new CachedBodyOutputMessage(exchange,
-                        exchange.getResponse().getHeaders());
-                return bodyInserter.insert(outputMessage, new BodyInserterContext())
-                        .then(Mono.defer(() -> {
-                            Mono<DataBuffer> messageBody = writeBody(getDelegate(), outputMessage, byte[].class);
-                            HttpHeaders headers = getDelegate().getHeaders();
-                            if (!headers.containsKey(HttpHeaders.TRANSFER_ENCODING)
-                                    || headers.containsKey(HttpHeaders.CONTENT_LENGTH)) {
-                                messageBody = messageBody.doOnNext(data -> headers.setContentLength(data.readableByteCount()));
-                            }
-                            // TODO: fail if isStreamingMediaType?
-                            return getDelegate().writeWith(messageBody);
-                        }));
+                        } catch (Exception e) {
+                            return Mono.error(new BodyEncryptException(e));
+                        }
+                    }
+                    return Mono.just(newBody);
+                });
             }
             return super.writeWith(body);
         }
@@ -146,6 +127,37 @@ public class ResponseEncryptFilter implements GlobalFilter, Ordered {
         @Override
         public Mono<Void> writeAndFlushWith(Publisher<? extends Publisher<? extends DataBuffer>> body) {
             return writeWith(Flux.from(body).flatMapSequential(p -> p));
+        }
+
+        private Mono<Void> modifyBody(Publisher<? extends DataBuffer> body, Function<? super byte[], ? extends Mono<? extends byte[]>> transformer) {
+            String originalResponseContentType = exchange.getAttribute(ORIGINAL_RESPONSE_CONTENT_TYPE_ATTR);
+            HttpHeaders httpHeaders = new HttpHeaders();
+            // explicitly add it in this way instead of
+            // 'httpHeaders.setContentType(originalResponseContentType)'
+            // this will prevent exception in case of using non-standard media
+            // types like "Content-Type: image"
+            httpHeaders.add(HttpHeaders.CONTENT_TYPE, originalResponseContentType);
+
+            ClientResponse clientResponse = prepareClientResponse(body, httpHeaders);
+
+            // TODO: flux or mono
+            Mono<byte[]> modifiedBody = extractBody(exchange, clientResponse, byte[].class)
+                    .flatMap(transformer);
+
+            BodyInserter<Mono<byte[]>, ReactiveHttpOutputMessage> bodyInserter = BodyInserters.fromPublisher(modifiedBody, byte[].class);
+            CachedBodyOutputMessage outputMessage = new CachedBodyOutputMessage(exchange,
+                    exchange.getResponse().getHeaders());
+            return bodyInserter.insert(outputMessage, new BodyInserterContext())
+                    .then(Mono.defer(() -> {
+                        Mono<DataBuffer> messageBody = writeBody(getDelegate(), outputMessage, byte[].class);
+                        HttpHeaders headers = getDelegate().getHeaders();
+                        if (!headers.containsKey(HttpHeaders.TRANSFER_ENCODING)
+                                || headers.containsKey(HttpHeaders.CONTENT_LENGTH)) {
+                            messageBody = messageBody.doOnNext(data -> headers.setContentLength(data.readableByteCount()));
+                        }
+                        // TODO: fail if isStreamingMediaType?
+                        return getDelegate().writeWith(messageBody);
+                    }));
         }
 
         private ClientResponse prepareClientResponse(Publisher<? extends DataBuffer> body, HttpHeaders httpHeaders) {

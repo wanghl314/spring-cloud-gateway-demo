@@ -1,6 +1,8 @@
 package com.weaver.emobile.gateway.controller;
 
-import com.weaver.emobile.gateway.util.Consts;
+import com.weaver.emobile.gateway.config.SecurityTransferProperties;
+import com.weaver.emobile.gateway.consts.GatewayConsts;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,13 +15,26 @@ import java.util.Map;
 @RestController
 @RequestMapping("/base")
 public class BaseController {
+    @Autowired
+    private SecurityTransferProperties properties;
 
     @GetMapping("/getsetting")
     public Map<String, String> getSetting(ServerHttpRequest request, ServerHttpResponse response) {
         Map<String, String> data = new HashMap<String, String>();
-        data.put("keyEncryptType", "RSA");
-        data.put("dataEncryptType", "AES");
-        data.put("keyEncryptKey", Consts.PUBLIC_KEY);
+
+        if (this.properties.isEnabled()) {
+            String keyEncryptAlgorithm = this.properties.getKeyAlgorithm();
+            data.put("keyEncryptAlgorithm", keyEncryptAlgorithm);
+            data.put("dataEncryptAlgorithm", this.properties.getDataAlgorithm());
+            String publicKey = null;
+
+            if (GatewayConsts.Algorithm.SM2.equalsIgnoreCase(keyEncryptAlgorithm)) {
+                publicKey = GatewayConsts.SM2_PUBLIC_KEY;
+            } else {
+                publicKey = GatewayConsts.RSA_PUBLIC_KEY;
+            }
+            data.put("publicKey", publicKey);
+        }
         return data;
     }
 

@@ -1,12 +1,10 @@
 package com.weaver.emobile.gateway.filter;
 
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
-
-import javax.crypto.Cipher;
-import javax.crypto.CipherInputStream;
-import javax.crypto.spec.SecretKeySpec;
-
+import com.weaver.emobile.gateway.config.SecurityTransferProperties;
+import com.weaver.emobile.gateway.consts.GatewayConsts;
+import com.weaver.emobile.gateway.global.BodyDecryptException;
+import com.weaver.emobile.gateway.global.KeyDecryptException;
+import com.weaver.emobile.gateway.util.EncodeUtils;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -30,14 +28,14 @@ import org.springframework.web.reactive.function.BodyInserter;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.server.ServerWebExchange;
-
-import com.weaver.emobile.gateway.global.BodyDecryptException;
-import com.weaver.emobile.gateway.global.KeyDecryptException;
-import com.weaver.emobile.gateway.util.Consts;
-import com.weaver.emobile.gateway.util.EncodeUtils;
-
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import javax.crypto.Cipher;
+import javax.crypto.CipherInputStream;
+import javax.crypto.spec.SecretKeySpec;
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 
 @Component
 public class RequestDecryptFilter implements GlobalFilter, Ordered {
@@ -45,27 +43,35 @@ public class RequestDecryptFilter implements GlobalFilter, Ordered {
 
     private final ServerCodecConfigurer configurer;
 
-    public RequestDecryptFilter(ServerCodecConfigurer configurer) {
+    private final SecurityTransferProperties securityTransferProperties;
+
+    public RequestDecryptFilter(ServerCodecConfigurer configurer,
+                                SecurityTransferProperties securityTransferProperties) {
         this.configurer = configurer;
+        this.securityTransferProperties = securityTransferProperties;
     }
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         HttpHeaders requestHeaders = exchange.getRequest().getHeaders();
         MediaType contentType = requestHeaders.getContentType();
-        String dataEncryptKey = requestHeaders.getFirst(Consts.DATA_ENCRYPT_KEY_HEADER);
+        String dataEncryptKey = requestHeaders.getFirst(GatewayConsts.REQUEST_ENCRYPT_KEY);
         String dataEncryptDecryptKey = null;
 
         if (StringUtils.isNotBlank(dataEncryptKey)) {
             try {
-                dataEncryptDecryptKey = EncodeUtils.rsaDecrypt(dataEncryptKey, Consts.PRIVATE_KEY);
+                if (GatewayConsts.Algorithm.SM2.equalsIgnoreCase(this.securityTransferProperties.getKeyAlgorithm())) {
+
+                } else {
+                    dataEncryptDecryptKey = EncodeUtils.rsaDecrypt(dataEncryptKey, GatewayConsts.RSA_PRIVATE_KEY);
+                }
             } catch (Exception e) {
                 throw new KeyDecryptException(e);
             }
         }
 
         if (StringUtils.isNotBlank(dataEncryptDecryptKey)) {
-            exchange.getAttributes().put(Consts.DECRYPTED_DATA_ENCRYPT_KEY, dataEncryptDecryptKey);
+            exchange.getAttributes().put(GatewayConsts.EXCHANGE_ENCRYPT_KEY, dataEncryptDecryptKey);
             ServerRequest serverRequest = ServerRequest.create(exchange, this.configurer.getReaders());
             String finalDataEncryptDecryptKey = dataEncryptDecryptKey;
 
@@ -75,18 +81,22 @@ public class RequestDecryptFilter implements GlobalFilter, Ordered {
 
                         if (originalBody != null) {
                             try {
-                                SecretKeySpec secretKey = new SecretKeySpec(finalDataEncryptDecryptKey.getBytes(), "AES");
-                                Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
-                                cipher.init(Cipher.DECRYPT_MODE, secretKey);
-                                InputStream is;
+                                if (GatewayConsts.Algorithm.SM4.equalsIgnoreCase(this.securityTransferProperties.getDataAlgorithm())) {
 
-                                if (contentType != null && StringUtils.containsIgnoreCase(contentType.toString(), MediaType.MULTIPART_FORM_DATA_VALUE)) {
-                                    is = new ByteArrayInputStream(originalBody);
                                 } else {
-                                    is = new ByteArrayInputStream(Base64.decodeBase64(originalBody));
+                                    SecretKeySpec secretKey = new SecretKeySpec(finalDataEncryptDecryptKey.getBytes(), "AES");
+                                    Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+                                    cipher.init(Cipher.DECRYPT_MODE, secretKey);
+                                    InputStream is;
+
+                                    if (contentType != null && StringUtils.containsIgnoreCase(contentType.toString(), MediaType.MULTIPART_FORM_DATA_VALUE)) {
+                                        is = new ByteArrayInputStream(originalBody);
+                                    } else {
+                                        is = new ByteArrayInputStream(Base64.decodeBase64(originalBody));
+                                    }
+                                    CipherInputStream cis = new CipherInputStream(is, cipher);
+                                    newBody = IOUtils.toByteArray(cis);
                                 }
-                                CipherInputStream cis = new CipherInputStream(is, cipher);
-                                newBody = IOUtils.toByteArray(cis);
 //                                newBody = EncodeUtils.aesDecrypt(Base64.decodeBase64(originalBody), finalDataEncryptDecryptKey);
                             } catch (Exception e) {
                                 return Mono.error(new BodyDecryptException(e));
@@ -98,8 +108,8 @@ public class RequestDecryptFilter implements GlobalFilter, Ordered {
             HttpHeaders headers = new HttpHeaders();
             headers.putAll(requestHeaders);
             headers.remove(HttpHeaders.CONTENT_LENGTH);
-            headers.remove(Consts.SERVER_ID_HEADER);
-            headers.remove(Consts.DATA_ENCRYPT_KEY_HEADER);
+            headers.remove(GatewayConsts.SERVER_ID);
+            headers.remove(GatewayConsts.REQUEST_ENCRYPT_KEY);
 
             CachedBodyOutputMessage outputMessage = new CachedBodyOutputMessage(exchange, headers);
             return bodyInserter.insert(outputMessage, new BodyInserterContext())

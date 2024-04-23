@@ -1,9 +1,8 @@
 package com.weaver.emobile.gateway.global;
 
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
-
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.weaver.emobile.gateway.consts.GatewayConsts;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,12 +15,11 @@ import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.server.ServerWebExchange;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.weaver.emobile.gateway.util.Consts;
-
 import reactor.core.publisher.Mono;
+
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 
 @Component
 public class GlobalErrorWebExceptionHandler implements ErrorWebExceptionHandler {
@@ -40,7 +38,6 @@ public class GlobalErrorWebExceptionHandler implements ErrorWebExceptionHandler 
         }
         HttpHeaders headers = response.getHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set(Consts.DATA_ENCRYPTED_HEADER, "false");
 
         if (t instanceof ResponseStatusException rse) {
             response.setStatusCode(rse.getStatusCode());
@@ -58,6 +55,7 @@ public class GlobalErrorWebExceptionHandler implements ErrorWebExceptionHandler 
             errcode = 2;
             errmsg = "BodyDecryptException";
         } else if (t instanceof BodyEncryptException) {
+            headers.set(GatewayConsts.RESPONSE_ENCRYPT, "0");
             errcode = 3;
             errmsg = "BodyEncryptException";
         }
