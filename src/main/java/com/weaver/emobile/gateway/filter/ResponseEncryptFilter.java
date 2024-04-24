@@ -74,7 +74,10 @@ public class ResponseEncryptFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        return chain.filter(exchange.mutate().response(new ModifiedServerHttpResponse(exchange)).build());
+        if (this.securityTransferProperties.isEnabled()) {
+            return chain.filter(exchange.mutate().response(new ModifiedServerHttpResponse(exchange)).build());
+        }
+        return chain.filter(exchange);
     }
 
     private class ModifiedServerHttpResponse extends ServerHttpResponseDecorator {
@@ -97,29 +100,31 @@ public class ResponseEncryptFilter implements GlobalFilter, Ordered {
                                 MediaType.TEXT_PLAIN.isCompatibleWith(MediaType.parseMediaType(originalResponseContentType)) ||
                                 MediaType.APPLICATION_JSON.isCompatibleWith(MediaType.parseMediaType(originalResponseContentType)) ||
                                 MediaType.APPLICATION_XML.isCompatibleWith(MediaType.parseMediaType(originalResponseContentType))));
-                exchange.getResponse().getHeaders().set(GatewayConsts.RESPONSE_ENCRYPT, dataEncrypt ? "1" : "0");
+                this.exchange.getResponse().getHeaders().set(GatewayConsts.RESPONSE_ENCRYPT, dataEncrypt ? "1" : "0");
 
-                return this.modifyBody(body, originalBody -> {
-                    byte[] newBody = originalBody;
+                if (dataEncrypt) {
+                    return this.modifyBody(body, originalBody -> {
+                        byte[] newBody = originalBody;
 
-                    if (originalBody != null) {
-                        try {
-                            if (GatewayConsts.Algorithm.SM4.equalsIgnoreCase(securityTransferProperties.getDataAlgorithm())) {
+                        if (originalBody != null) {
+                            try {
+                                if (GatewayConsts.Algorithm.SM4.equalsIgnoreCase(securityTransferProperties.getDataAlgorithm())) {
 
-                            } else {
-                                SecretKeySpec secretKey = new SecretKeySpec(dataEncryptDecryptKey.getBytes(), "AES");
-                                Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
-                                cipher.init(Cipher.ENCRYPT_MODE, secretKey);
-                                CipherInputStream cis = new CipherInputStream(new ByteArrayInputStream(originalBody), cipher);
-                                newBody = IOUtils.toByteArray(cis);
-                                newBody = Base64.encodeBase64(newBody);
+                                } else {
+                                    SecretKeySpec secretKey = new SecretKeySpec(dataEncryptDecryptKey.getBytes(), "AES");
+                                    Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+                                    cipher.init(Cipher.ENCRYPT_MODE, secretKey);
+                                    CipherInputStream cis = new CipherInputStream(new ByteArrayInputStream(originalBody), cipher);
+                                    byte[] bytes = IOUtils.toByteArray(cis);
+                                    newBody = Base64.encodeBase64(bytes);
+                                }
+                            } catch (Exception e) {
+                                return Mono.error(new BodyEncryptException(e));
                             }
-                        } catch (Exception e) {
-                            return Mono.error(new BodyEncryptException(e));
                         }
-                    }
-                    return Mono.just(newBody);
-                });
+                        return Mono.just(newBody);
+                    });
+                }
             }
             return super.writeWith(body);
         }

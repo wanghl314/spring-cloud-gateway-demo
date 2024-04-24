@@ -53,70 +53,72 @@ public class RequestDecryptFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        HttpHeaders requestHeaders = exchange.getRequest().getHeaders();
-        MediaType contentType = requestHeaders.getContentType();
-        String dataEncryptKey = requestHeaders.getFirst(GatewayConsts.REQUEST_ENCRYPT_KEY);
-        String dataEncryptDecryptKey = null;
+        if (this.securityTransferProperties.isEnabled()) {
+            HttpHeaders requestHeaders = exchange.getRequest().getHeaders();
+            MediaType contentType = requestHeaders.getContentType();
+            String dataEncryptKey = requestHeaders.getFirst(GatewayConsts.REQUEST_ENCRYPT_KEY);
+            String dataEncryptDecryptKey = null;
 
-        if (StringUtils.isNotBlank(dataEncryptKey)) {
-            try {
-                if (GatewayConsts.Algorithm.SM2.equalsIgnoreCase(this.securityTransferProperties.getKeyAlgorithm())) {
+            if (StringUtils.isNotBlank(dataEncryptKey)) {
+                try {
+                    if (GatewayConsts.Algorithm.SM2.equalsIgnoreCase(this.securityTransferProperties.getKeyAlgorithm())) {
 
-                } else {
-                    dataEncryptDecryptKey = EncodeUtils.rsaDecrypt(dataEncryptKey, GatewayConsts.RSA_PRIVATE_KEY);
+                    } else {
+                        dataEncryptDecryptKey = EncodeUtils.rsaDecrypt(dataEncryptKey, GatewayConsts.RSA_PRIVATE_KEY);
+                    }
+                } catch (Exception e) {
+                    throw new KeyDecryptException(e);
                 }
-            } catch (Exception e) {
-                throw new KeyDecryptException(e);
             }
-        }
 
-        if (StringUtils.isNotBlank(dataEncryptDecryptKey)) {
-            exchange.getAttributes().put(GatewayConsts.EXCHANGE_ENCRYPT_KEY, dataEncryptDecryptKey);
-            ServerRequest serverRequest = ServerRequest.create(exchange, this.configurer.getReaders());
-            String finalDataEncryptDecryptKey = dataEncryptDecryptKey;
+            if (StringUtils.isNotBlank(dataEncryptDecryptKey)) {
+                exchange.getAttributes().put(GatewayConsts.EXCHANGE_ENCRYPT_KEY, dataEncryptDecryptKey);
+                ServerRequest serverRequest = ServerRequest.create(exchange, this.configurer.getReaders());
+                String finalDataEncryptDecryptKey = dataEncryptDecryptKey;
 
-            Mono<byte[]> modifiedBody = serverRequest.bodyToMono(byte[].class)
-                    .flatMap(originalBody -> {
-                        byte[] newBody = originalBody;
+                Mono<byte[]> modifiedBody = serverRequest.bodyToMono(byte[].class)
+                        .flatMap(originalBody -> {
+                            byte[] newBody = originalBody;
 
-                        if (originalBody != null) {
-                            try {
-                                if (GatewayConsts.Algorithm.SM4.equalsIgnoreCase(this.securityTransferProperties.getDataAlgorithm())) {
+                            if (originalBody != null) {
+                                try {
+                                    if (GatewayConsts.Algorithm.SM4.equalsIgnoreCase(this.securityTransferProperties.getDataAlgorithm())) {
 
-                                } else {
-                                    SecretKeySpec secretKey = new SecretKeySpec(finalDataEncryptDecryptKey.getBytes(), "AES");
-                                    Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
-                                    cipher.init(Cipher.DECRYPT_MODE, secretKey);
-                                    InputStream is;
-
-                                    if (contentType != null && StringUtils.containsIgnoreCase(contentType.toString(), MediaType.MULTIPART_FORM_DATA_VALUE)) {
-                                        is = new ByteArrayInputStream(originalBody);
                                     } else {
-                                        is = new ByteArrayInputStream(Base64.decodeBase64(originalBody));
-                                    }
-                                    CipherInputStream cis = new CipherInputStream(is, cipher);
-                                    newBody = IOUtils.toByteArray(cis);
-                                }
-//                                newBody = EncodeUtils.aesDecrypt(Base64.decodeBase64(originalBody), finalDataEncryptDecryptKey);
-                            } catch (Exception e) {
-                                return Mono.error(new BodyDecryptException(e));
-                            }
-                        }
-                        return Mono.just(newBody);
-                    });
-            BodyInserter<Mono<byte[]>, ReactiveHttpOutputMessage> bodyInserter = BodyInserters.fromPublisher(modifiedBody, byte[].class);
-            HttpHeaders headers = new HttpHeaders();
-            headers.putAll(requestHeaders);
-            headers.remove(HttpHeaders.CONTENT_LENGTH);
-            headers.remove(GatewayConsts.SERVER_ID);
-            headers.remove(GatewayConsts.REQUEST_ENCRYPT_KEY);
+                                        SecretKeySpec secretKey = new SecretKeySpec(finalDataEncryptDecryptKey.getBytes(), "AES");
+                                        Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+                                        cipher.init(Cipher.DECRYPT_MODE, secretKey);
+                                        InputStream is;
 
-            CachedBodyOutputMessage outputMessage = new CachedBodyOutputMessage(exchange, headers);
-            return bodyInserter.insert(outputMessage, new BodyInserterContext())
-                    .then(Mono.defer(() -> {
-                        ServerHttpRequest decorator = decorate(exchange, headers, outputMessage);
-                        return chain.filter(exchange.mutate().request(decorator).build());
-                    }));
+                                        if (contentType != null && MediaType.MULTIPART_FORM_DATA.isCompatibleWith(contentType)) {
+                                            is = new ByteArrayInputStream(originalBody);
+                                        } else {
+                                            is = new ByteArrayInputStream(Base64.decodeBase64(originalBody));
+                                        }
+                                        CipherInputStream cis = new CipherInputStream(is, cipher);
+                                        newBody = IOUtils.toByteArray(cis);
+                                    }
+//                                newBody = EncodeUtils.aesDecrypt(Base64.decodeBase64(originalBody), finalDataEncryptDecryptKey);
+                                } catch (Exception e) {
+                                    return Mono.error(new BodyDecryptException(e));
+                                }
+                            }
+                            return Mono.just(newBody);
+                        });
+                BodyInserter<Mono<byte[]>, ReactiveHttpOutputMessage> bodyInserter = BodyInserters.fromPublisher(modifiedBody, byte[].class);
+                HttpHeaders headers = new HttpHeaders();
+                headers.putAll(requestHeaders);
+                headers.remove(HttpHeaders.CONTENT_LENGTH);
+                headers.remove(GatewayConsts.SERVER_ID);
+                headers.remove(GatewayConsts.REQUEST_ENCRYPT_KEY);
+
+                CachedBodyOutputMessage outputMessage = new CachedBodyOutputMessage(exchange, headers);
+                return bodyInserter.insert(outputMessage, new BodyInserterContext())
+                        .then(Mono.defer(() -> {
+                            ServerHttpRequest decorator = decorate(exchange, headers, outputMessage);
+                            return chain.filter(exchange.mutate().request(decorator).build());
+                        }));
+            }
         }
         return chain.filter(exchange);
     }
