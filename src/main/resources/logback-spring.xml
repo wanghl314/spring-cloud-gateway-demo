@@ -16,14 +16,14 @@
 			<totalSizeCap>1GB</totalSizeCap>
 		</rollingPolicy>
 	</appender>
-	<appender name="accessLog" class="ch.qos.logback.core.FileAppender">
+	<appender name="accessLog" class="ch.qos.logback.core.rolling.RollingFileAppender">
 		<encoder>
 			<pattern>%msg%n</pattern>
 		</encoder>
 		<file>${ACCESS_LOG_FILE}</file>
 		<rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-			<fileNamePattern>${ACCESS_LOG_FILE}-%d{yyyy-MM-dd}.zip</fileNamePattern>
-			<maxFileSize>10MB</maxFileSize>
+			<fileNamePattern>${ACCESS_LOG_FILE}-%d{yyyy-MM-dd}-%i.zip</fileNamePattern>
+			<maxFileSize>100MB</maxFileSize>
 			<maxHistory>60</maxHistory>
 			<totalSizeCap>1GB</totalSizeCap>
 		</rollingPolicy>
