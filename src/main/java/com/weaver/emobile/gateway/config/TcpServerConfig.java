@@ -9,6 +9,7 @@ import jakarta.annotation.PreDestroy;
 import org.apache.commons.collections4.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
@@ -26,10 +27,16 @@ public class TcpServerConfig {
 
     private final List<Master> masters;
 
-    public TcpServerConfig(TcpProxyProperties tcpProxyProperties, SecurityTransferProperties securityTransferProperties) {
+    public TcpServerConfig(TcpProxyProperties tcpProxyProperties,
+                           SecurityTransferProperties securityTransferProperties,
+                           ObjectProvider<List<Master>> provider) {
         this.tcpProxyProperties = tcpProxyProperties;
         this.securityTransferProperties = securityTransferProperties;
         this.masters = new ArrayList<Master>();
+
+        if (provider.getIfAvailable() != null) {
+            this.masters.addAll(provider.getIfAvailable());
+        }
     }
 
     @PostConstruct
