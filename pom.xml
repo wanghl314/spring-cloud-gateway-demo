@@ -11,24 +11,24 @@
     <properties>
         <!-- commons-io/commons-io -->
         <commons-io.version>2.16.1</commons-io.version>
+        <!-- org/apache/commons/commons-collections4 -->
+        <commons-collections4.version>4.4</commons-collections4.version>
         <java.version>17</java.version>
         <!-- org/projectlombok/lombok -->
         <lombok.version>1.18.32</lombok.version>
         <!-- org/apache/maven/plugins/maven-compiler-plugin -->
         <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
         <!-- org/apache/maven/plugins/maven-javadoc-plugin -->
-        <maven-javadoc-plugin.version>3.6.3</maven-javadoc-plugin.version>
+        <maven-javadoc-plugin.version>3.7.0</maven-javadoc-plugin.version>
         <!-- org/apache/maven/plugins/maven-source-plugin -->
         <maven-source-plugin.version>3.3.1</maven-source-plugin.version>
-        <!-- io/micrometer/micrometer-tracing-bom -->
-        <micrometer-tracing.version>1.2.5</micrometer-tracing.version>
         <!-- org/apache/mina/mina-core -->
         <mina.version>2.2.3</mina.version>
         <revision>1.0-SNAPSHOT</revision>
         <!-- org/springframework/boot/spring-boot-dependencies -->
-        <spring-boot.version>3.2.5</spring-boot.version>
+        <spring-boot.version>3.2.6</spring-boot.version>
         <!-- org/springframework/cloud/spring-cloud-dependencies -->
-        <spring-cloud.version>2023.0.1</spring-cloud.version>
+        <spring-cloud.version>2023.0.2</spring-cloud.version>
     </properties>
 
     <repositories>
@@ -61,11 +61,9 @@
                 <version>${commons-io.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.micrometer</groupId>
-                <artifactId>micrometer-tracing-bom</artifactId>
-                <version>${micrometer-tracing.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-collections4</artifactId>
+                <version>${commons-collections4.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.mina</groupId>
