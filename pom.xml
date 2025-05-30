@@ -26,9 +26,9 @@
         <mina.version>2.2.4</mina.version>
         <revision>1.0-SNAPSHOT</revision>
         <!-- org/springframework/boot/spring-boot-dependencies -->
-        <spring-boot.version>3.4.5</spring-boot.version>
+        <spring-boot.version>3.5.0</spring-boot.version>
         <!-- org/springframework/cloud/spring-cloud-dependencies -->
-        <spring-cloud.version>2024.0.1</spring-cloud.version>
+        <spring-cloud.version>2025.0.0</spring-cloud.version>
     </properties>
 
     <repositories>
@@ -124,7 +124,7 @@
         </dependency>
         <dependency>
             <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-gateway</artifactId>
+            <artifactId>spring-cloud-starter-gateway-server-webflux</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
