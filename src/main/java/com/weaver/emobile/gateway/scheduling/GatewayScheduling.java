@@ -1,20 +1,18 @@
 package com.weaver.emobile.gateway.scheduling;
 
-import java.time.Duration;
-
+import com.weaver.emobile.gateway.util.RouteUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.weaver.emobile.gateway.util.RouteUtils;
-
 import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClientRequest;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
+
+import java.time.Duration;
 
 @Component
 public class GatewayScheduling {
@@ -49,7 +47,7 @@ public class GatewayScheduling {
     private void handleRefreshRoutesResp(String body) {
         try {
             RouteUtils.setRoutes(this.mapper.readValue(body, new TypeReference<>() {}));
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             logger.error(e.getMessage(), e);
         }
     }

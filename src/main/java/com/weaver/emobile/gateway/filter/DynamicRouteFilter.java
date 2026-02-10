@@ -1,25 +1,22 @@
 package com.weaver.emobile.gateway.filter;
 
-import java.net.URI;
-
+import com.weaver.emobile.gateway.util.RouteUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.boot.web.servlet.filter.OrderedFilter;
+import org.springframework.boot.webflux.filter.OrderedWebFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.cloud.gateway.route.Route;
 import org.springframework.cloud.gateway.support.ServerWebExchangeUtils;
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpCookie;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.util.UriComponentsBuilder;
-
-import com.weaver.emobile.gateway.util.RouteUtils;
-
 import reactor.core.publisher.Mono;
+
+import java.net.URI;
 
 @Component
 public class DynamicRouteFilter implements GlobalFilter, Ordered {
@@ -32,7 +29,7 @@ public class DynamicRouteFilter implements GlobalFilter, Ordered {
         String targetUrl = RouteUtils.getRoutes().get(serverId);
 
         if (StringUtils.isNotBlank(targetUrl)) {
-            URI uri = UriComponentsBuilder.fromHttpUrl(targetUrl).build().toUri();
+            URI uri = UriComponentsBuilder.fromUriString(targetUrl).build().toUri();
             Route route = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR);
             Route newRoute = Route.async()
                     .id(route.getId())
@@ -50,7 +47,7 @@ public class DynamicRouteFilter implements GlobalFilter, Ordered {
 
     @Override
     public int getOrder() {
-        return OrderedFilter.REQUEST_WRAPPER_FILTER_MAX_ORDER - 30;
+        return OrderedWebFilter.REQUEST_WRAPPER_FILTER_MAX_ORDER - 30;
     }
 
     private String getServerId(ServerHttpRequest request) {

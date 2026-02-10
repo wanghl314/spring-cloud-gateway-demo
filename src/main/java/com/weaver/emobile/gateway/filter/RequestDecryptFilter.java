@@ -10,7 +10,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.web.servlet.filter.OrderedFilter;
+import org.springframework.boot.webflux.filter.OrderedWebFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.cloud.gateway.filter.factory.rewrite.CachedBodyOutputMessage;
@@ -151,7 +151,7 @@ public class RequestDecryptFilter implements GlobalFilter, Ordered {
 
     @Override
     public int getOrder() {
-        return OrderedFilter.REQUEST_WRAPPER_FILTER_MAX_ORDER - 20;
+        return OrderedWebFilter.REQUEST_WRAPPER_FILTER_MAX_ORDER - 20;
     }
 
 }

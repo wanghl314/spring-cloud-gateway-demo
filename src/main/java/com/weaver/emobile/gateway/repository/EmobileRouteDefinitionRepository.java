@@ -36,7 +36,7 @@ public class EmobileRouteDefinitionRepository implements RouteDefinitionReposito
         route.setId("spring-demo");
         route.setPredicates(List.of(predicate));
         route.setFilters(List.of(filter));
-        route.setUri(UriComponentsBuilder.fromHttpUrl("http://127.0.0.1:8080/spring").build().toUri());
+        route.setUri(UriComponentsBuilder.fromUriString("http://127.0.0.1:8080/spring").build().toUri());
         route.setOrder(1);
         routes.add(route);
         return Flux.fromIterable(routes);

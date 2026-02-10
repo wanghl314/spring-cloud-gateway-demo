@@ -9,7 +9,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.web.servlet.filter.OrderedFilter;
+import org.springframework.boot.webflux.filter.OrderedWebFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.cloud.gateway.filter.factory.rewrite.CachedBodyOutputMessage;
@@ -156,8 +156,8 @@ public class ResponseEncryptFilter implements GlobalFilter, Ordered {
                     .then(Mono.defer(() -> {
                         Mono<DataBuffer> messageBody = writeBody(getDelegate(), outputMessage, byte[].class);
                         HttpHeaders headers = getDelegate().getHeaders();
-                        if (!headers.containsKey(HttpHeaders.TRANSFER_ENCODING)
-                                || headers.containsKey(HttpHeaders.CONTENT_LENGTH)) {
+                        if (!headers.containsHeader(HttpHeaders.TRANSFER_ENCODING)
+                                || headers.containsHeader(HttpHeaders.CONTENT_LENGTH)) {
                             messageBody = messageBody.doOnNext(data -> headers.setContentLength(data.readableByteCount()));
                         }
                         // TODO: fail if isStreamingMediaType?
@@ -221,7 +221,7 @@ public class ResponseEncryptFilter implements GlobalFilter, Ordered {
 
     @Override
     public int getOrder() {
-        return OrderedFilter.REQUEST_WRAPPER_FILTER_MAX_ORDER - 10;
+        return OrderedWebFilter.REQUEST_WRAPPER_FILTER_MAX_ORDER - 10;
     }
 
 }

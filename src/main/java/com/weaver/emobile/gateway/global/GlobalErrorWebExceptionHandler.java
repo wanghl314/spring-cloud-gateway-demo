@@ -1,12 +1,10 @@
 package com.weaver.emobile.gateway.global;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.weaver.emobile.gateway.consts.GatewayConsts;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.web.reactive.error.ErrorWebExceptionHandler;
+import org.springframework.boot.webflux.error.ErrorWebExceptionHandler;
 import org.springframework.core.io.buffer.DataBufferFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -16,6 +14,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -68,7 +68,7 @@ public class GlobalErrorWebExceptionHandler implements ErrorWebExceptionHandler 
                     DataBufferFactory bufferFactory = response.bufferFactory();
                     try {
                         return bufferFactory.wrap(this.mapper.writeValueAsBytes(result));
-                    } catch (JsonProcessingException e) {
+                    } catch (JacksonException e) {
                         return bufferFactory.wrap(("{\"errcode\":\""+ finalErrcode +"\",\"errmsg\":\""+finalErrmsg+"\"}").getBytes(StandardCharsets.UTF_8));
                     }
                 }));
